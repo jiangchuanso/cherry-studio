@@ -168,8 +168,25 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           pattern: desktop-*
-          merge-multiple: true
-          path: packages
+          path: raw-packages
+
+      - name: Prepare release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p packages
+          shopt -s nullglob
+          for d in raw-packages/desktop-*; do
+            name="$(basename "$d")"
+            if [[ "$name" == *-cn ]]; then ed=cn; else ed=global; fi
+            for f in "$d"/*-win-x64-setup.exe "$d"/*-win-x64-portable.exe "$d"/*-linux-arm64.deb; do
+              base="$(basename "$f")"
+              [[ "$ed" == cn ]] && base="cn-${base}"
+              cp "$f" "packages/${base}"
+            done
+          done
+          echo "Release assets:"
+          ls -l packages
 
       - name: Upload packages to the tag release
         env:
@@ -178,8 +195,6 @@ jobs:
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
           echo "Attaching packages to release $TAG"
-          ls -l packages
-
           if gh release view "$TAG" > /dev/null 2>&1; then
             gh release upload "$TAG" packages/* --clobber
           else
