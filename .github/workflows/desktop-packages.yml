@@ -19,9 +19,9 @@ on:
   workflow_dispatch:
     inputs:
       platform:
-        description: 'Packages to build'
+        description: "Packages to build"
         required: true
-        default: 'all'
+        default: "all"
         type: choice
         options:
           - all
@@ -29,7 +29,7 @@ on:
           - linux
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 concurrency:
   group: desktop-packages-${{ github.ref }}
@@ -62,7 +62,7 @@ jobs:
       - name: Install Node.js
         uses: actions/setup-node@v6
         with:
-          node-version-file: '.node-version'
+          node-version-file: ".node-version"
 
       - name: Install pnpm
         uses: pnpm/action-setup@v5
