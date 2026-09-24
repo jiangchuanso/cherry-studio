@@ -1,0 +1,176 @@
+name: Desktop Packages
+run-name: Desktop packages (${{ github.event.inputs.platform || 'all' }}) @ ${{ github.sha }}
+
+# Upstream release workflows are gated to github.repository == 'CherryHQ/cherry-studio',
+# so a fork never produces release binaries. This workflow is repository-agnostic and
+# builds the two packages this fork actually ships:
+#   * Windows x64 installer / portable exe
+#   * Linux arm64 deb (Kylin V10 SP1 desktop is Debian/Ubuntu based on arm64)
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: 'Packages to build'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - windows
+          - linux
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: desktop-packages-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  windows-x64:
+    name: Windows x64 exe
+    if: github.event.inputs.platform != 'linux'
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.node-version'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      - name: Build Windows x64 packages
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+        run: |
+          pnpm run build
+          pnpm exec electron-builder --win --x64
+
+      - name: Stage Windows x64 artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-windows-x64
+          path: |
+            dist/*-win-x64-setup.exe
+            dist/*-win-x64-portable.exe
+          if-no-files-found: error
+
+  linux-arm64:
+    name: Linux arm64 deb
+    if: github.event.inputs.platform != 'windows'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: '.node-version'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm dependencies
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install Dependencies
+        run: pnpm install
+
+      # Same system packages as the upstream release workflow so fpm/rpm packaging works.
+      - name: Build Linux arm64 packages
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+        run: |
+          sudo apt-get install -y rpm libevdev-dev libxtst-dev libx11-dev libxfixes-dev libwayland-dev
+          pnpm run build
+          pnpm exec electron-builder --linux --arm64
+
+      - name: Verify deb target metadata
+        run: |
+          shopt -s nullglob
+          debs=(dist/*-linux-arm64.deb)
+          if [ ${#debs[@]} -eq 0 ]; then
+            echo "::error::No linux arm64 deb was produced"
+            exit 1
+          fi
+          for deb in "${debs[@]}"; do
+            echo "--- $deb"
+            dpkg-deb -f "$deb" Package Version Architecture Depends
+            dpkg-deb -c "$deb" > /dev/null
+          done
+
+      - name: Stage Linux arm64 artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-linux-arm64
+          path: dist/*-linux-arm64.deb
+          if-no-files-found: error
+
+  publish:
+    name: Attach packages to GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows-x64, linux-arm64]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: desktop-*
+          merge-multiple: true
+          path: packages
+
+      - name: Upload packages to the tag release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          echo "Attaching packages to release $TAG"
+          ls -l packages
+
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" packages/* --clobber
+          else
+            gh release create "$TAG" packages/* --generate-notes
+          fi
