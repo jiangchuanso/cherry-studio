@@ -1,11 +1,20 @@
 name: Desktop Packages
 run-name: Desktop packages (${{ github.event.inputs.platform || 'all' }}) @ ${{ github.sha }}
 
-# Upstream release workflows are gated to github.repository == 'CherryHQ/cherry-studio',
-# so a fork never produces release binaries. This workflow is repository-agnostic and
-# builds the two packages this fork actually ships:
-#   * Windows x64 installer / portable exe
-#   * Linux arm64 deb (Kylin V10 SP1 desktop is Debian/Ubuntu based on arm64)
+# Standalone copy of the upstream Release workflow's build jobs.
+#
+# Why it exists: every upstream release workflow is gated behind
+# `if: github.repository == 'CherryHQ/cherry-studio'`, so a fork never produces binaries.
+# This workflow keeps the same build commands and the same artifact contract but has no
+# repository guard, so this repository can actually ship packages.
+#
+# Artifacts (renamed by scripts/artifact-build-completed.js, validated by
+# scripts/release/validate-edition-artifacts.js):
+#   * Cherry-Studio-<version>-win-x64-setup.exe / -portable.exe   (windows-latest)
+#   * Cherry-Studio-<version>-linux-arm64.deb                      (ubuntu-latest)
+#
+# Kylin Desktop V10 SP1 is Ubuntu 20.04 based (glibc 2.31), which meets the Electron 44
+# runtime baseline, so the generic linux arm64 deb installs and runs there.
 on:
   workflow_dispatch:
     inputs:
@@ -30,10 +39,19 @@ permissions:
   contents: write
 
 jobs:
-  windows-x64:
-    name: Windows x64 exe
-    if: github.event.inputs.platform != 'linux'
-    runs-on: windows-latest
+  build:
+    name: Build ${{ matrix.edition }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        edition: [global, cn]
+        os: ${{ fromJSON(
+          github.event.inputs.platform == 'linux' && '["ubuntu-latest"]' ||
+          github.event.inputs.platform == 'windows' && '["windows-latest"]' ||
+          '["windows-latest", "ubuntu-latest"]'
+          ) }}
 
     steps:
       - name: Check out Git repository
@@ -65,67 +83,48 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
-      - name: Build Windows x64 packages
+      - name: Build Windows
+        if: matrix.os == 'windows-latest'
+        run: pnpm ${{ matrix.edition == 'cn' && 'build:win:cn' || 'build:win' }}
         env:
+          ELECTRON_BUILDER_7Z_FILTER: BCJ
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_OPTIONS: --max-old-space-size=8192
-        run: |
-          pnpm run build
-          pnpm exec electron-builder --win --x64
+          # Upstream enables Sentry unconditionally; here it is only enabled when the
+          # token is configured, otherwise scripts/electron.vite.config.ts throws.
+          SENTRY_SOURCE_MAP_UPLOAD: ${{ secrets.SENTRY_AUTH_TOKEN != '' && 'true' || 'false' }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          MAIN_VITE_CHERRYAI_CLIENT_SECRET: ${{ secrets.MAIN_VITE_CHERRYAI_CLIENT_SECRET }}
+          MAIN_VITE_CHERRY_CLOUD_CLIENT_SECRET: ${{ secrets.MAIN_VITE_CHERRY_CLOUD_CLIENT_SECRET }}
+          MAIN_VITE_MINERU_API_KEY: ${{ secrets.MAIN_VITE_MINERU_API_KEY }}
+          RENDERER_VITE_AIHUBMIX_SECRET: ${{ secrets.RENDERER_VITE_AIHUBMIX_SECRET }}
+          RENDERER_VITE_PPIO_APP_SECRET: ${{ secrets.RENDERER_VITE_PPIO_APP_SECRET }}
 
-      - name: Stage Windows x64 artifacts
-        uses: actions/upload-artifact@v7
-        with:
-          name: desktop-windows-x64
-          path: |
-            dist/*-win-x64-setup.exe
-            dist/*-win-x64-portable.exe
-          if-no-files-found: error
-
-  linux-arm64:
-    name: Linux arm64 deb
-    if: github.event.inputs.platform != 'windows'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-
-      - name: Install Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version-file: '.node-version'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v5
-
-      - name: Get pnpm store directory
-        id: pnpm-cache
-        shell: bash
-        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_OUTPUT
-
-      - name: Cache pnpm dependencies
-        uses: actions/cache@v6
-        with:
-          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-
-
-      - name: Install Dependencies
-        run: pnpm install
-
-      # Same system packages as the upstream release workflow so fpm/rpm packaging works.
-      - name: Build Linux arm64 packages
-        env:
-          NODE_OPTIONS: --max-old-space-size=8192
+      - name: Build Linux
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get install -y rpm libevdev-dev libxtst-dev libx11-dev libxfixes-dev libwayland-dev
-          pnpm run build
-          pnpm exec electron-builder --linux --arm64
+          pnpm ${{ matrix.edition == 'cn' && 'build:linux:cn' || 'build:linux' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NODE_OPTIONS: --max-old-space-size=8192
+          SENTRY_SOURCE_MAP_UPLOAD: ${{ secrets.SENTRY_AUTH_TOKEN != '' && 'true' || 'false' }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+          MAIN_VITE_CHERRYAI_CLIENT_SECRET: ${{ secrets.MAIN_VITE_CHERRYAI_CLIENT_SECRET }}
+          MAIN_VITE_CHERRY_CLOUD_CLIENT_SECRET: ${{ secrets.MAIN_VITE_CHERRY_CLOUD_CLIENT_SECRET }}
+          MAIN_VITE_MINERU_API_KEY: ${{ secrets.MAIN_VITE_MINERU_API_KEY }}
+          RENDERER_VITE_AIHUBMIX_SECRET: ${{ secrets.RENDERER_VITE_AIHUBMIX_SECRET }}
+          RENDERER_VITE_PPIO_APP_SECRET: ${{ secrets.RENDERER_VITE_PPIO_APP_SECRET }}
 
-      - name: Verify deb target metadata
+      - name: Validate edition release artifacts
+        run: node scripts/release/validate-edition-artifacts.js "${{ matrix.edition }}"
+
+      - name: Inspect linux arm64 deb
+        if: matrix.os == 'ubuntu-latest'
         run: |
           shopt -s nullglob
           debs=(dist/*-linux-arm64.deb)
@@ -139,17 +138,29 @@ jobs:
             dpkg-deb -c "$deb" > /dev/null
           done
 
-      - name: Stage Linux arm64 artifacts
+      - name: Stage Windows release artifacts
+        if: matrix.os == 'windows-latest'
         uses: actions/upload-artifact@v7
         with:
-          name: desktop-linux-arm64
-          path: dist/*-linux-arm64.deb
+          name: desktop-${{ matrix.os }}-${{ matrix.edition }}
+          path: |
+            dist/*-win-x64-setup.exe
+            dist/*-win-x64-portable.exe
+          if-no-files-found: error
+
+      - name: Stage Linux release artifacts
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-${{ matrix.os }}-${{ matrix.edition }}
+          path: |
+            dist/*-linux-arm64.deb
           if-no-files-found: error
 
   publish:
     name: Attach packages to GitHub release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows-x64, linux-arm64]
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
