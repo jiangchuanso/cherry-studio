@@ -182,7 +182,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p packages
+          # Do not name this directory `packages`: the checkout above restores the repo's own
+          # pnpm workspace `packages/` directory, and `gh release create <dir>/*` would then try
+          # to upload its subdirectories ("is a directory").
+          mkdir -p release-assets
           shopt -s nullglob
           for d in raw-packages/desktop-*; do
             name="$(basename "$d")"
@@ -190,11 +193,11 @@ jobs:
             for f in "$d"/*-win-x64-setup.exe "$d"/*-win-x64-portable.exe "$d"/*-linux-arm64.deb; do
               base="$(basename "$f")"
               [[ "$ed" == cn ]] && base="cn-${base}"
-              cp "$f" "packages/${base}"
+              cp "$f" "release-assets/${base}"
             done
           done
           echo "Release assets:"
-          ls -l packages
+          ls -l release-assets
 
       - name: Upload packages to the tag release
         env:
@@ -205,7 +208,7 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           echo "Attaching packages to release $TAG"
           if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release upload "$TAG" packages/* --clobber
+            gh release upload "$TAG" release-assets/* --clobber
           else
-            gh release create "$TAG" packages/* --generate-notes
+            gh release create "$TAG" release-assets/* --generate-notes
           fi
