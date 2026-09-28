@@ -50,6 +50,9 @@ const drainLogs = () => new Promise((resolve) => setImmediate(resolve))
 function setConsent(granted: boolean) {
   preferences['app.privacy.data_collection.enabled'] = granted
   preferences['app.privacy.policy_version'] = granted ? LATEST_PRIVACY_POLICY_VERSION : ''
+  // Crash reporting also gates on the automatic-network switch; keep it opted
+  // in so these tests exercise the consent path only.
+  preferences['app.network.automatic_requests.enabled'] = true
 }
 
 beforeEach(async () => {

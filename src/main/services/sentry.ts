@@ -5,6 +5,7 @@ import winston from 'winston'
 
 import { application } from '@application'
 import { loggerService } from '@logger'
+import { isAutomaticNetworkAllowed } from '@main/utils/automaticNetwork'
 import { isDataCollectionConsented } from '@main/utils/privacyConsent'
 import { getClientId } from '@main/utils/systemInfo'
 import { getSentryBuildContext, getSentryLogContext, sanitizeSentryEvent } from '@shared/utils/sentry'
@@ -45,6 +46,9 @@ function allowedIntegrations() {
 // Read current consent without instantiating services during preboot.
 // An existing preference store may still be initializing or already stopped.
 function consentGranted(): boolean {
+  // Crash reports are unsolicited outbound traffic, so they need the
+  // automatic-network opt-in on top of privacy consent.
+  if (!isAutomaticNetworkAllowed()) return false
   const preferenceService = application.getExisting('PreferenceService')
   if (!preferenceService?.isReady) return false
 

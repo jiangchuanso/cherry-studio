@@ -12,6 +12,7 @@ import { isWin } from '@main/core/platform'
 import { WindowType } from '@main/core/window/types'
 import { regionService } from '@main/services/RegionService'
 import { getAppEdition } from '@main/utils/appEdition'
+import { isAutomaticNetworkAllowed } from '@main/utils/automaticNetwork'
 import { generateUserAgent, getClientId } from '@main/utils/systemInfo'
 import type { RetryPolicy } from '@shared/data/api/schemas/jobs'
 import { UpgradeChannel } from '@shared/data/preference/preferenceTypes'
@@ -137,6 +138,12 @@ export class AppUpdaterService extends BaseService {
     // Development builds skip automatic checks but still support manual checks.
     // Portable builds do not perform update checks.
     if (!app.isPackaged || this.isPortable()) {
+      return
+    }
+    // Automatic outbound requests are opt-in — no unprompted traffic to the
+    // release feed. `checkForUpdates()` (the manual entry point) is unaffected.
+    if (!isAutomaticNetworkAllowed()) {
+      logger.info('automatic update check disabled: automatic outbound requests are off')
       return
     }
     this.scheduleNextUpdateCheck(INITIAL_CHECK_DELAY_MS)

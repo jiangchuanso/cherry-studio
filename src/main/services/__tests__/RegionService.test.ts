@@ -40,6 +40,7 @@ vi.mock('@application', async () => {
 })
 
 import { MockMainCacheServiceUtils } from '@test-mocks/main/CacheService'
+import { MockMainPreferenceServiceUtils } from '@test-mocks/main/PreferenceService'
 
 import { regionService } from '../RegionService'
 
@@ -60,8 +61,20 @@ const createDeferred = <T>() => {
 describe('RegionService', () => {
   beforeEach(() => {
     MockMainCacheServiceUtils.resetMocks()
+    // Detection is on by default in the mock store; the opt-out case is
+    // exercised by its own test below.
+    MockMainPreferenceServiceUtils.setPreferenceValue('app.network.automatic_requests.enabled', true)
     netFetchMock.mockReset()
     proxyState.appliedProxyKey = 'direct||'
+  })
+
+  it('never calls out when automatic outbound requests are disabled', async () => {
+    MockMainPreferenceServiceUtils.setPreferenceValue('app.network.automatic_requests.enabled', false)
+    netFetchMock.mockResolvedValue(fetchResponse({ country_code: 'US' }))
+
+    await expect(regionService.getCountry()).resolves.toBe('CN')
+    await expect(regionService.isInChina()).resolves.toBe(true)
+    expect(netFetchMock).not.toHaveBeenCalled()
   })
 
   it('fetches the egress country and caches it for subsequent calls', async () => {

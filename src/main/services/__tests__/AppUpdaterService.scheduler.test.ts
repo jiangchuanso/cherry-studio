@@ -99,6 +99,7 @@ describe('AppUpdaterService — auto update-check scheduling', () => {
     setPackaged(true)
 
     prefValues = {
+      'app.network.automatic_requests.enabled': true,
       'app.dist.auto_update.enabled': true,
       'app.dist.test_plan.enabled': false,
       'app.dist.test_plan.channel': undefined,
@@ -214,6 +215,16 @@ describe('AppUpdaterService — auto update-check scheduling', () => {
 
   it('does not schedule when the app is not packaged', async () => {
     setPackaged(false)
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    await appUpdater._doAllReady()
+
+    expect(scheduler.has(SCHEDULE_ID)).toBe(false)
+    await vi.advanceTimersByTimeAsync(INITIAL_DELAY + INTERVAL)
+    expect(autoUpdater.checkForUpdates).not.toHaveBeenCalled()
+  })
+
+  it('does not schedule while automatic outbound requests are disabled', async () => {
+    prefValues['app.network.automatic_requests.enabled'] = false
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     await appUpdater._doAllReady()
 

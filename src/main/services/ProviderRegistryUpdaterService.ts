@@ -17,6 +17,7 @@ import { providerRegistryService } from '@main/data/services/ProviderRegistrySer
 import { readActiveOverrideManifest } from '@main/data/services/utils/registryDataPaths'
 import { writeProviderRegistrySnapshot } from '@main/services/providerRegistrySnapshot'
 import { regionService } from '@main/services/RegionService'
+import { isAutomaticNetworkAllowed } from '@main/utils/automaticNetwork'
 import { generateUserAgent } from '@main/utils/systemInfo'
 import type { DataApiDataChangeEffect } from '@shared/data/api/types'
 
@@ -85,6 +86,12 @@ export class ProviderRegistryUpdaterService extends BaseService {
     // shadow the source catalog a developer just regenerated. `check()` is still
     // callable directly for manual/test runs.
     if (!app.isPackaged) return
+    // Automatic outbound requests are opt-in — the bundled catalog is used as-is
+    // until the user opts in. `check()` stays callable for manual runs.
+    if (!isAutomaticNetworkAllowed()) {
+      logger.info('registry auto-update disabled: automatic outbound requests are off')
+      return
+    }
 
     this.registerInterval(() => this.check(), CHECK_INTERVAL_MS)
 

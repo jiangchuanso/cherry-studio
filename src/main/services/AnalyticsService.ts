@@ -5,6 +5,7 @@ import type { AnalyticsClient, TokenUsageData } from '@cherrystudio/analytics-cl
 import { loggerService } from '@logger'
 import { createLatestReconciler, type LatestReconciler } from '@main/core/concurrency/latestReconciler'
 import { type Activatable, BaseService, Injectable, Phase, ServicePhase } from '@main/core/lifecycle'
+import { isAutomaticNetworkAllowed } from '@main/utils/automaticNetwork'
 import { isDataCollectionConsented } from '@main/utils/privacyConsent'
 import { generateUserAgent, getClientId } from '@main/utils/systemInfo'
 import { APP_NAME } from '@shared/utils/constants'
@@ -63,10 +64,14 @@ export class AnalyticsService extends BaseService implements Activatable {
 
   private refreshDesiredEnabled(): void {
     const preferenceService = application.get('PreferenceService')
-    this.desiredEnabled = isDataCollectionConsented(
-      preferenceService.get('app.privacy.data_collection.enabled'),
-      preferenceService.get('app.privacy.policy_version')
-    )
+    // Analytics is unsolicited outbound traffic: it needs both privacy consent
+    // and the automatic-network opt-in.
+    this.desiredEnabled =
+      isAutomaticNetworkAllowed() &&
+      isDataCollectionConsented(
+        preferenceService.get('app.privacy.data_collection.enabled'),
+        preferenceService.get('app.privacy.policy_version')
+      )
     this.reconciler.request()
   }
 

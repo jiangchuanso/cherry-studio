@@ -2,6 +2,7 @@ import { net } from 'electron'
 
 import { application } from '@application'
 import { loggerService } from '@logger'
+import { isAutomaticNetworkAllowed } from '@main/utils/automaticNetwork'
 
 const logger = loggerService.withContext('RegionService')
 
@@ -62,6 +63,9 @@ class RegionService {
 
   private async getDetectedCountry(signal?: AbortSignal): Promise<string> {
     signal?.throwIfAborted()
+    // Detection is an unprompted outbound request, so it is opt-in. Callers keep
+    // their meaning: they fall back to the China-default mirror selection.
+    if (!isAutomaticNetworkAllowed()) return DEFAULT_COUNTRY
     const cached = this.getCachedCountry()
     if (cached) return cached
 

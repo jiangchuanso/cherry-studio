@@ -11,10 +11,28 @@ import type { UnifiedPreferenceKeyType, UnifiedPreferenceType } from '@shared/da
 // Mock preference state storage
 const mockPreferenceState = new Map<UnifiedPreferenceKeyType, any>()
 
+/**
+ * Deviations from `DefaultPreferences` that tests need: the automatic-network
+ * switch defaults to off in production, but the update check, registry pull,
+ * region detection and analytics services are exercised here, so the mock store
+ * opts in. The gate itself is covered by tests that flip it back off.
+ */
+const TEST_PREFERENCE_OVERRIDES: Partial<Record<UnifiedPreferenceKeyType, unknown>> = {
+  'app.network.automatic_requests.enabled': true
+}
+
+const resetPreferenceState = () => {
+  mockPreferenceState.clear()
+  Object.entries(DefaultPreferences.default).forEach(([key, value]) => {
+    mockPreferenceState.set(key as UnifiedPreferenceKeyType, value)
+  })
+  Object.entries(TEST_PREFERENCE_OVERRIDES).forEach(([key, value]) => {
+    mockPreferenceState.set(key as UnifiedPreferenceKeyType, value)
+  })
+}
+
 // Initialize with defaults
-Object.entries(DefaultPreferences.default).forEach(([key, value]) => {
-  mockPreferenceState.set(key as UnifiedPreferenceKeyType, value)
-})
+resetPreferenceState()
 
 // Mock subscription tracking
 const mockSubscriptions = new Map<number, Set<string>>() // windowId -> Set<keys>
@@ -218,10 +236,7 @@ export const MockMainPreferenceServiceUtils = {
     })
 
     // Reset state to defaults
-    mockPreferenceState.clear()
-    Object.entries(DefaultPreferences.default).forEach(([key, value]) => {
-      mockPreferenceState.set(key as UnifiedPreferenceKeyType, value)
-    })
+    resetPreferenceState()
 
     // Clear subscriptions
     mockSubscriptions.clear()

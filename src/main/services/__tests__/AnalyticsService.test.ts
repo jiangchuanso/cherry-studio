@@ -86,6 +86,9 @@ beforeEach(() => {
   }
   captured.preferenceValues['app.privacy.data_collection.enabled'] = true
   captured.preferenceValues['app.privacy.policy_version'] = LATEST_PRIVACY_POLICY_VERSION
+  // Analytics also gates on the automatic-network switch; keep it opted in so
+  // these tests exercise the consent path only.
+  captured.preferenceValues['app.network.automatic_requests.enabled'] = true
   destroyResolvers = []
   mockTrackAppLaunch.mockReset()
   mockTrackTokenUsage.mockReset()
