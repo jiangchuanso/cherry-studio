@@ -54,6 +54,13 @@ concurrency:
 
 jobs:
   sync:
+    # The published catalog is only ever read from the repo the shipped apps
+    # fetch from (see REGISTRY_URL_GITHUB / REGISTRY_URL_GITCODE in
+    # src/main/services/ProviderRegistryUpdaterService.ts), and only that repo
+    # owns the `x-files/provider-registry` branch — a fork run would fail
+    # checking the ref out. Same repo-specific guard as the other publish and
+    # release workflows.
+    if: github.repository == 'CherryHQ/cherry-studio'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
