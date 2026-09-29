@@ -17,8 +17,8 @@ type CapabilityStepProps = {
  * are stored as `skillIds`; the wizard stays mounted while installing, so form
  * data is preserved while the shared `/skills` cache updates.
  *
- * Builtin skills are shown pre-checked and locked (not part of `skillIds`)
- * since the server always enables them for new agents regardless of what's
+ * Every installed skill is shown pre-checked and locked (not part of `skillIds`)
+ * since the server enables all of them for new agents regardless of what's
  * submitted here — this keeps the picker truthful about what will exist after
  * creation instead of showing a togglable state that submit would ignore.
  */

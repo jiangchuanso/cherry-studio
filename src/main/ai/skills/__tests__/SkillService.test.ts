@@ -246,12 +246,12 @@ describe('SkillService', () => {
       const skillService = new SkillService()
       await seedAgent()
       await seedSkills()
-      // Enable skill-one for the agent
-      await dbh.db.insert(agentSkillTable).values({
-        agentId: AGENT_ID,
-        skillId: SKILL_ID_1,
-        isEnabled: true
-      })
+      // Enable skill-one and disable skill-two for the agent; an explicit
+      // `agent_skill` row always wins over the enabled-by-default fallback.
+      await dbh.db.insert(agentSkillTable).values([
+        { agentId: AGENT_ID, skillId: SKILL_ID_1, isEnabled: true },
+        { agentId: AGENT_ID, skillId: SKILL_ID_2, isEnabled: false }
+      ])
 
       const result = await skillService.list({ agentId: AGENT_ID })
 
@@ -295,17 +295,15 @@ describe('SkillService', () => {
       expect(storedPreference?.isEnabled).toBe(true)
     })
 
-    it('defaults isEnabled to false for non-builtin skills and true for builtin skills when agentId has no skill rows', async () => {
+    it('defaults isEnabled to true for every skill when agentId has no skill rows', async () => {
       const skillService = new SkillService()
       await seedAgent()
       await seedSkills()
 
       const result = await skillService.list({ agentId: AGENT_ID })
 
-      const nonBuiltin = result.filter((s) => s.id !== SKILL_ID_BUILTIN)
-      const builtin = result.find((s) => s.id === SKILL_ID_BUILTIN)
-      expect(nonBuiltin.every((s) => s.isEnabled === false)).toBe(true)
-      expect(builtin?.isEnabled).toBe(true)
+      expect(result).toHaveLength(3)
+      expect(result.every((s) => s.isEnabled)).toBe(true)
     })
 
     it('an explicit disabled row for a builtin skill overrides the enabled-by-default fallback', async () => {

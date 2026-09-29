@@ -155,7 +155,7 @@ describe('SkillCatalogPicker', () => {
     expect(onSelectedIdsChange).toHaveBeenLastCalledWith(['disabled-skill', 'enabled-skill'])
   })
 
-  it('clears globally disabled draft selections when toggling all skills off during Agent creation', async () => {
+  it('shows every globally enabled skill as enabled by default and locked during Agent creation', async () => {
     const user = userEvent.setup()
     const onSelectedIdsChange = vi.fn()
     const enabledSkill = {
@@ -176,16 +176,26 @@ describe('SkillCatalogPicker', () => {
         mode="create"
         skills={[enabledSkill, disabledSkill]}
         loading={false}
-        selectedIds={['enabled-skill', 'disabled-skill']}
+        selectedIds={[]}
         onSelectedIdsChange={onSelectedIdsChange}
         emptyLabel="No skills"
         portalContainer={null}
       />
     )
 
-    await user.click(screen.getByRole('switch', { name: 'library.config.agent.section.tools.skills_enable_all' }))
+    const skillCheckbox = screen.getByRole('checkbox', { name: 'Enabled Skill' })
+    expect(skillCheckbox).toBeChecked()
+    expect(skillCheckbox).toBeDisabled()
+    expect(screen.queryByText('Disabled Skill')).not.toBeInTheDocument()
 
-    expect(onSelectedIdsChange).toHaveBeenCalledWith([])
+    const bulkToggle = screen.getByRole('switch', {
+      name: 'library.config.agent.section.tools.skills_enable_all'
+    })
+    expect(bulkToggle).toBeChecked()
+    expect(bulkToggle).toBeDisabled()
+
+    await user.click(bulkToggle)
+    expect(onSelectedIdsChange).not.toHaveBeenCalled()
   })
 
   it('dismisses the add menu without closing its parent dialog', async () => {

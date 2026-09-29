@@ -1377,7 +1377,7 @@ export class SkillService {
    * - If the row is missing (first install), inserts it.
    *
    * Per-agent enablement needs no fan-out here: `AgentGlobalSkillService.list()`
-   * defaults a builtin skill to enabled for every agent until a user explicitly
+   * defaults every skill to enabled for every agent until a user explicitly
    * toggles it off, so a fresh `agent_global_skill` row is enabled everywhere —
    * for existing and future agents alike — without any `agent_skill` rows.
    */

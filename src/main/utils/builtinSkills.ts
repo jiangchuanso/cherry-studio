@@ -18,7 +18,7 @@ const logger = loggerService.withContext('builtinSkills')
  * Storage:  {userData}/Data/Skills/{folderName}/
  *
  * Per-agent enablement needs no work here: `AgentGlobalSkillService.list()`
- * defaults a builtin skill to enabled for every agent until a user explicitly
+ * defaults every skill to enabled for every agent until a user explicitly
  * disables it, so a synced `agent_global_skill` row is enabled everywhere
  * without any `agent_skill` rows.
  *

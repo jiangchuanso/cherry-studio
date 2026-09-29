@@ -31,7 +31,13 @@ type SkillCatalogPickerProps = {
   trailingItem?: ReactNode
 }
 
-/** Shared Skill search, bulk-selection, and installation surface for Agent forms. */
+/**
+ * Shared Skill search, bulk-selection, and installation surface for Agent forms.
+ *
+ * The edit dialog renders a live per-skill preference against the agent. The
+ * create wizard has no preference to edit — new agents start with every
+ * installed skill enabled — so it lists them pre-checked and locked.
+ */
 export function SkillCatalogPicker({
   mode,
   skills,
@@ -50,33 +56,37 @@ export function SkillCatalogPicker({
   const [systemSkillOpen, setSystemSkillOpen] = useState(false)
   const availableSkills = useMemo(() => skills.filter((skill) => skill.isGlobalEnabled), [skills])
 
-  const builtinIds = useMemo(
-    () =>
-      mode === 'create' ? availableSkills.filter((skill) => skill.source === 'builtin').map((skill) => skill.id) : [],
+  // Every installed skill is enabled for a new agent by default: the server treats
+  // a skill without an explicit `agent_skill` row as enabled (see
+  // AgentGlobalSkillService.list). The create wizard therefore shows all of them
+  // pre-checked and locked — they are not part of the submitted `skillIds` — so it
+  // stays truthful about what the created agent will actually have.
+  const defaultEnabledIds = useMemo(
+    () => (mode === 'create' ? availableSkills.map((skill) => skill.id) : []),
     [availableSkills, mode]
   )
-  const selectableIds = useMemo(
-    () => availableSkills.filter((skill) => mode === 'edit' || skill.source !== 'builtin').map((skill) => skill.id),
-    [availableSkills, mode]
-  )
+  const selectableIds = useMemo(() => availableSkills.map((skill) => skill.id), [availableSkills])
   const selectableIdSet = useMemo(() => new Set(selectableIds), [selectableIds])
   const preservedHiddenSelectedIds = useMemo(
     () => (mode === 'edit' ? selectedIds.filter((id) => !selectableIdSet.has(id)) : []),
     [mode, selectableIdSet, selectedIds]
   )
-  const selectedIdSet = useMemo(() => new Set(selectedIds), [selectedIds])
-  const enabledIds = useMemo(() => new Set([...selectedIds, ...builtinIds]), [builtinIds, selectedIds])
+  const enabledIds = useMemo(
+    () => new Set([...selectedIds, ...defaultEnabledIds]),
+    [defaultEnabledIds, selectedIds]
+  )
   const catalog = useMemo<CatalogItem[]>(() => {
     const normalizedQuery = query.trim().toLowerCase()
 
     return availableSkills
       .filter((skill) => !normalizedQuery || skill.name.toLowerCase().includes(normalizedQuery))
       .map((skill) => {
-        if (mode === 'create' && skill.source === 'builtin') {
+        if (mode === 'create') {
           return {
             id: skill.id,
             name: skill.name,
             disableToggle: true,
+            // `builtin_badge` is the shared "enabled by default" label.
             inactiveBadge: t('library.config.dialogs.create.capability.builtin_badge')
           }
         }
@@ -89,7 +99,7 @@ export function SkillCatalogPicker({
         }
       })
   }, [availableSkills, mode, query, t])
-  const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selectedIdSet.has(id))
+  const allSelected = availableSkills.length > 0 && availableSkills.every((skill) => enabledIds.has(skill.id))
 
   const setSelected = (id: string, enabled: boolean) => {
     onSelectedIdsChange(
@@ -138,7 +148,9 @@ export function SkillCatalogPicker({
         <Switch
           size="sm"
           checked={allSelected}
-          disabled={loading || disabled || selectableIds.length === 0}
+          // In the create wizard every skill is enabled by default and locked, so bulk
+          // selection has nothing left to control.
+          disabled={loading || disabled || mode === 'create' || selectableIds.length === 0}
           onCheckedChange={(selected) =>
             onSelectedIdsChange(
               selected ? [...preservedHiddenSelectedIds, ...selectableIds] : preservedHiddenSelectedIds

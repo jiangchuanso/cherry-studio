@@ -62,7 +62,7 @@ export class AgentGlobalSkillService {
    * Without an agent, every installed skill is returned for the global
    * settings catalog and `isEnabled` is false. With `query.agentId`, globally
    * disabled skills are excluded from the Agent capability catalog; remaining
-   * rows project the `agent_skill` preference (with builtins enabled by default).
+   * rows project the `agent_skill` preference (with every skill enabled by default).
    */
   list(query: ListSkillsQuery = {}): InstalledSkill[] {
     const conditions: SQL[] = []
@@ -96,7 +96,9 @@ export class AgentGlobalSkillService {
     const enabledMap = this.loadEnabledMap(query.agentId)
     return skills.map((s) => ({
       ...s,
-      isEnabled: enabledMap.get(s.id) ?? s.source === 'builtin'
+      // Every skill — builtin or user/third-party — is enabled for every agent
+      // until an explicit `agent_skill` row (i.e. a user toggle) says otherwise.
+      isEnabled: enabledMap.get(s.id) ?? true
     }))
   }
 
