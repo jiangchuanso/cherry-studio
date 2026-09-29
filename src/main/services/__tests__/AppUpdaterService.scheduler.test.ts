@@ -144,8 +144,8 @@ describe('AppUpdaterService — auto update-check scheduling', () => {
 
     // `isAutomaticNetworkAllowed()` resolves the preference store through
     // `application.getExisting()`, so it must answer with the same stub.
-    ;(application.getExisting as ReturnType<typeof vi.fn<(...args: any[]) => any>>).mockImplementation(
-      (name: string) => resolveService(name)
+    ;(application.getExisting as ReturnType<typeof vi.fn<(...args: any[]) => any>>).mockImplementation((name: string) =>
+      resolveService(name)
     )
 
     vi.mocked(regionService.getCountry).mockResolvedValue('US')
