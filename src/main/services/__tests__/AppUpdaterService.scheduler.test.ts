@@ -117,7 +117,7 @@ describe('AppUpdaterService — auto update-check scheduling', () => {
     scheduler = new SchedulerService()
     appUpdater = new AppUpdaterService()
 
-    ;(application.get as ReturnType<typeof vi.fn<(...args: any[]) => any>>).mockImplementation((name: string) => {
+    const resolveService = (name: string): unknown => {
       switch (name) {
         case 'PreferenceService':
           return prefStub
@@ -130,9 +130,23 @@ describe('AppUpdaterService — auto update-check scheduling', () => {
         case 'WindowManager':
           return windowManagerStub
         default:
-          throw new Error(`unexpected application.get('${name}')`)
+          return undefined
       }
+    }
+
+    ;(application.get as ReturnType<typeof vi.fn<(...args: any[]) => any>>).mockImplementation((name: string) => {
+      const service = resolveService(name)
+      if (service === undefined) {
+        throw new Error(`unexpected application.get('${name}')`)
+      }
+      return service
     })
+
+    // `isAutomaticNetworkAllowed()` resolves the preference store through
+    // `application.getExisting()`, so it must answer with the same stub.
+    ;(application.getExisting as ReturnType<typeof vi.fn<(...args: any[]) => any>>).mockImplementation(
+      (name: string) => resolveService(name)
+    )
 
     vi.mocked(regionService.getCountry).mockResolvedValue('US')
     vi.mocked(autoUpdater.checkForUpdates).mockResolvedValue(null)

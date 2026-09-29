@@ -115,58 +115,42 @@ describe('CapabilityStep', () => {
     systemSkillDialogState.current = null
   })
 
-  it('writes selected skills through the checkbox catalog variant', async () => {
+  it('shows every installed skill pre-checked and locked, and never adds them to skillIds', async () => {
     const user = userEvent.setup()
     render(<CapabilityStepHarness />)
 
-    await user.click(screen.getByRole('checkbox', { name: 'Alpha Skill' }))
-    expect(screen.getByTestId('skill-ids')).toHaveTextContent('skill-a')
+    const alphaSkill = screen.getByRole('checkbox', { name: 'Alpha Skill' })
+    const betaSkill = screen.getByRole('checkbox', { name: 'Beta Skill' })
+    const builtinSkill = screen.getByRole('checkbox', { name: 'Builtin Skill' })
 
-    await user.click(screen.getByRole('checkbox', { name: 'Beta Skill' }))
-    expect(screen.getByTestId('skill-ids')).toHaveTextContent('skill-a,skill-b')
+    expect(alphaSkill).toBeChecked()
+    expect(alphaSkill).toBeDisabled()
+    expect(betaSkill).toBeChecked()
+    expect(betaSkill).toBeDisabled()
+    expect(builtinSkill).toBeChecked()
+    expect(builtinSkill).toBeDisabled()
 
-    await user.click(screen.getByRole('checkbox', { name: 'Alpha Skill' }))
-    expect(screen.getByTestId('skill-ids')).toHaveTextContent('skill-b')
-  })
+    await user.click(builtinSkill)
+    expect(builtinSkill).toBeChecked()
 
-  it('shows builtin skills pre-checked and locked, and never adds them to skillIds', async () => {
-    const user = userEvent.setup()
-    render(<CapabilityStepHarness />)
-
-    const builtinCheckbox = screen.getByRole('checkbox', { name: 'Builtin Skill' })
-    expect(builtinCheckbox).toBeChecked()
-    expect(builtinCheckbox).toBeDisabled()
-
-    await user.click(builtinCheckbox)
-    expect(builtinCheckbox).toBeChecked()
+    await user.click(alphaSkill)
+    expect(alphaSkill).toBeChecked()
     expect(screen.getByTestId('skill-ids').textContent).toBe('')
-
-    await user.click(screen.getByRole('checkbox', { name: 'Alpha Skill' }))
-    expect(screen.getByTestId('skill-ids').textContent).toBe('skill-a')
   })
 
-  it('selects and clears every configurable skill without adding builtin skills to skillIds', async () => {
+  it('locks the bulk toggle because every installed skill is already enabled', async () => {
     const user = userEvent.setup()
     render(<CapabilityStepHarness />)
 
     const selectAllSwitch = screen.getByRole('switch', {
       name: 'library.config.agent.section.tools.skills_enable_all'
     })
-    const alphaSkill = screen.getByRole('checkbox', { name: 'Alpha Skill' })
-    const betaSkill = screen.getByRole('checkbox', { name: 'Beta Skill' })
-    const builtinSkill = screen.getByRole('checkbox', { name: 'Builtin Skill' })
+    expect(selectAllSwitch).toBeChecked()
+    expect(selectAllSwitch).toBeDisabled()
 
     await user.click(selectAllSwitch)
-    expect(screen.getByTestId('skill-ids')).toHaveTextContent('skill-a,skill-b')
-    expect(alphaSkill).toBeChecked()
-    expect(betaSkill).toBeChecked()
-    expect(builtinSkill).toBeChecked()
-
-    await user.click(selectAllSwitch)
+    expect(selectAllSwitch).toBeChecked()
     expect(screen.getByTestId('skill-ids').textContent).toBe('')
-    expect(alphaSkill).not.toBeChecked()
-    expect(betaSkill).not.toBeChecked()
-    expect(builtinSkill).toBeChecked()
   })
 
   it('opens the skill import dialog', async () => {

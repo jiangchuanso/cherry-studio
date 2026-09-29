@@ -71,10 +71,7 @@ export function SkillCatalogPicker({
     () => (mode === 'edit' ? selectedIds.filter((id) => !selectableIdSet.has(id)) : []),
     [mode, selectableIdSet, selectedIds]
   )
-  const enabledIds = useMemo(
-    () => new Set([...selectedIds, ...defaultEnabledIds]),
-    [defaultEnabledIds, selectedIds]
-  )
+  const enabledIds = useMemo(() => new Set([...selectedIds, ...defaultEnabledIds]), [defaultEnabledIds, selectedIds])
   const catalog = useMemo<CatalogItem[]>(() => {
     const normalizedQuery = query.trim().toLowerCase()
 
