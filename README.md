@@ -5,7 +5,7 @@
   </a>
 </h1>
 
-<p align="center">English | <a href="https://cherry-ai.com">Official Site</a> | <a href="https://docs.cherry-ai.com/docs/en-us">Documents</a> | <a href="./docs/contrib/development.md">Development</a> | <a href="https://github.com/CherryHQ/cherry-studio/issues">Feedback</a><br></p>
+<p align="center">English | <a href="./README.zh-CN.md">简体中文</a> | <a href="https://cherry-ai.com">Official Site</a> | <a href="https://docs.cherry-ai.com/docs/en-us">Documents</a> | <a href="./docs/contrib/development.md">Development</a> | <a href="https://github.com/CherryHQ/cherry-studio/issues">Feedback</a><br></p>
 
 <div align="center">
 

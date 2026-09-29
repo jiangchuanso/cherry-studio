@@ -534,6 +534,11 @@ jobs:
           BUILD_RESULT: ${{ needs.build-windows-signed.result }}
           SYNC_RESULT: ${{ needs.sync-to-gitcode.result }}
         run: |
+          if [ -z "$FEISHU_WEBHOOK_URL" ] || [ -z "$FEISHU_WEBHOOK_SECRET" ]; then
+            echo "::warning::FEISHU_WEBHOOK_URL / FEISHU_WEBHOOK_SECRET 未配置，跳过飞书通知"
+            exit 0
+          fi
+
           if [ "$BUILD_RESULT" = "cancelled" ] || [ "$SYNC_RESULT" = "cancelled" ]; then
             STATUS_TEXT="已取消"
             COLOR="orange"
