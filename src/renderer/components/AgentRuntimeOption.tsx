@@ -48,7 +48,9 @@ const RUNTIME_DESCRIPTION_KEYS: Record<AgentType, string> = {
   dsh: 'library.config.agent.field.runtime.option_description.dsh'
 }
 
-const RUNTIMES = (Object.keys(AGENT_RUNTIME_CAPABILITIES) as AgentType[]).filter((runtime) => runtime !== 'dsh')
+// Fork change: upstream #21034 hides DeepSeek Harness (dsh) from the create-agent runtime
+// picker. We keep dsh selectable here so users can pick it when creating an agent.
+const RUNTIMES = Object.keys(AGENT_RUNTIME_CAPABILITIES) as AgentType[]
 const RUNTIME_CARD_CLASS_NAME = 'w-full items-center gap-2 rounded-lg px-3 py-1.5 font-normal'
 
 function RuntimeCardBody({ runtime, t, compact = false }: { runtime: AgentType; t: TFunction; compact?: boolean }) {
