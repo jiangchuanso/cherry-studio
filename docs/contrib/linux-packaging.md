@@ -33,6 +33,18 @@ from the separate repository.
 
 A missing, stale, or incompatible artifact stops packaging.
 
+## Modules Not Shipped on Linux
+
+`selection-hook` — the cross-app text-selection hook behind the selection assistant — is excluded from Linux
+packages by `modulesUnavailableOnLinux` in `scripts/packaging/before-pack.js`. Its upstream `linux-*` prebuilds
+are linked against GLIBC_2.38, above the Kylin Desktop V10 SP1 floor (glibc 2.31), and the `ubuntu-latest` runner
+can only rebuild against an even newer glibc, so no compatible build exists to ship. `SelectionService` loads the
+module lazily behind a `require()` that already catches the failure and switches `feature.selection.enabled` back
+off, so Linux users simply do not get the selection assistant. Windows and macOS keep the per-arch prebuilds.
+
+To restore it on Linux, publish glibc-2.28-compatible `selection-hook` prebuilds the way `better-sqlite3` does and
+override the packaged `.node` in `afterPack` instead of widening this exclusion.
+
 ## Updating the Prebuild
 
 When Electron or `better-sqlite3` changes:

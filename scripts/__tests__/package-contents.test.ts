@@ -39,11 +39,16 @@ describe('packaged dependency contents', () => {
           for (const file of [
             `@koromix/koffi-${target}/koffi.node`,
             `node-pty/prebuilds/${target}/pty.node`,
-            `selection-hook/prebuilds/${target}/selection.node`,
             `@anthropic-ai/claude-agent-sdk-${target}/claude`
           ]) {
             expect(includesFile(`${modules}/${file}`, patterns), file).toBe(keep)
           }
+          // selection-hook has no glibc-2.31-compatible build, so Linux packages omit it
+          // entirely; every other target keeps only its own prebuild.
+          const selectionHookFile = `selection-hook/prebuilds/${target}/selection.node`
+          expect(includesFile(`${modules}/${selectionHookFile}`, patterns), selectionHookFile).toBe(
+            keep && platform !== 'linux'
+          )
         }
       }
       for (const target of [

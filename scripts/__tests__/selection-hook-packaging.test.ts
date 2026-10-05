@@ -4,6 +4,8 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { parse } from 'yaml'
 
+import { getNativeModuleFilters } from '../packaging/before-pack'
+
 const projectRoot = path.join(import.meta.dirname, '..', '..')
 
 describe('selection-hook packaging', () => {
@@ -19,5 +21,28 @@ describe('selection-hook packaging', () => {
 
     expect(selectionHookPatterns).toContain('!node_modules/selection-hook/build/**')
     expect(selectionHookPatterns.some((entry) => entry.includes('/prebuilds/'))).toBe(false)
+  })
+
+  // Upstream selection-hook 2.1.1 linux-* prebuilds need GLIBC_2.38, above the Kylin V10 SP1
+  // (glibc 2.31) floor, and no older-linked build exists to ship instead — so Linux packages
+  // omit the whole module and SelectionService degrades to "selection assistant unavailable".
+  it.each(['linux', 'linuxmusl'])('omits the module entirely from %s packages', (platform) => {
+    const arm64 = getNativeModuleFilters(platform, 'arm64')
+    const x64 = getNativeModuleFilters(platform, 'x64')
+
+    expect(arm64).toContain('!**/node_modules/selection-hook/**')
+    expect(x64).toContain('!**/node_modules/selection-hook/**')
+  })
+
+  it.each([
+    ['darwin', 'arm64'],
+    ['darwin', 'x64'],
+    ['win32', 'arm64'],
+    ['win32', 'x64']
+  ])('keeps only the %s %s prebuild elsewhere', (platform, arch) => {
+    const filters = getNativeModuleFilters(platform, arch)
+
+    expect(filters).not.toContain('!**/node_modules/selection-hook/**')
+    expect(filters).toContain(`!**/node_modules/selection-hook/prebuilds/!(${platform}-${arch})/**`)
   })
 })

@@ -181,15 +181,34 @@ const assertPrebuiltPackages = (platform, arch) => {
 exports.assertPrebuiltPackages = assertPrebuiltPackages
 exports.keepPackages = keepPackages
 
+/**
+ * Native modules that Linux packages must not ship at all.
+ *
+ * `selection-hook` (cross-app text-selection hook behind the selection assistant) is the
+ * only one: its upstream `linux-*` prebuilds are linked against GLIBC_2.38, while our Linux
+ * floor is Kylin Desktop V10 SP1 (Ubuntu 20.04, glibc 2.31), and the `ubuntu-latest` runner
+ * can only produce something even newer — there is no build we could ship instead. Selection
+ * is loaded lazily behind a `require()` in `SelectionService`, which already catches the
+ * failure and flips `feature.selection.enabled` back off, so on Linux the module is simply
+ * absent and the selection assistant stays unavailable. Windows and macOS keep the prebuilds.
+ *
+ * See docs/contrib/linux-packaging.md.
+ */
+const modulesUnavailableOnLinux = ['selection-hook']
+
 const getNativeModuleFilters = (platform, arch) => {
   const keptPackages = keepPackages(platform, arch)
   const nativeBindingTarget = `${platform}-${arch}${platform === 'win32' ? '-msvc' : platform === 'linux' ? '-gnu' : ''}`
+  const isLinuxTarget = platform === 'linux' || platform === 'linuxmusl'
   return [
     ...packages.filter((name) => !keptPackages.includes(name)).map((name) => `!**/node_modules/${name}/**`),
     `!**/node_modules/@mariozechner/clipboard-!(${nativeBindingTarget})/**`,
     `!**/node_modules/@koromix/koffi-!(${platform}-${arch})/**`,
     `!**/node_modules/node-addon-require-builtin-!(${nativeBindingTarget})/**`,
-    `!**/node_modules/{node-pty,selection-hook}/prebuilds/!(${platform}-${arch})/**`
+    `!**/node_modules/node-pty/prebuilds/!(${platform}-${arch})/**`,
+    ...modulesUnavailableOnLinux.map((name) =>
+      isLinuxTarget ? `!**/node_modules/${name}/**` : `!**/node_modules/${name}/prebuilds/!(${platform}-${arch})/**`
+    )
   ]
 }
 exports.getNativeModuleFilters = getNativeModuleFilters
