@@ -27,6 +27,7 @@ env:
 jobs:
   # Build and sync share local files and require the same physical signing runner.
   build-windows-signed:
+    if: false # 个人 fork：无自托管 windows-signing 签名机、无 GitCode 镜像诉求，禁用此工作流（合并上游后如需恢复，删除本行即可）
     runs-on: [self-hosted, windows-signing]
     strategy:
       matrix:
@@ -179,6 +180,7 @@ jobs:
           sha256sum *.exe *.exe.blockmap *.yml > "SHA256SUMS-$EDITION.txt"
 
   sync-to-gitcode:
+    if: false # 个人 fork：禁用 GitCode 同步（合并上游后如需恢复，删除本行即可）
     runs-on: [self-hosted, windows-signing]
     needs: build-windows-signed
     steps:
@@ -514,15 +516,7 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     needs: [build-windows-signed, sync-to-gitcode]
-    if: >-
-      always() &&
-      (github.event_name != 'workflow_dispatch' || github.event.inputs.dry_run != 'true') &&
-      (
-        needs.build-windows-signed.result == 'failure' ||
-        needs.build-windows-signed.result == 'cancelled' ||
-        needs.sync-to-gitcode.result == 'failure' ||
-        needs.sync-to-gitcode.result == 'cancelled'
-      )
+    if: false # 随上面两个 job 一起禁用（合并上游后如需恢复，删除本行即可）
     steps:
       - name: Send failure notification to Feishu
         shell: bash
