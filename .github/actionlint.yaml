@@ -1,12 +1,3 @@
 self-hosted-runner:
   labels:
     - windows-signing
-
-# fork 定制：sync-to-gitcode.yml 的三个 job 用 `if: false` 主动禁用（无自托管
-# windows-signing 签名机、无 GitCode 镜像诉求）。actionlint 1.7.x 的 `-ignore`
-# 是按「错误消息正则」匹配的命令行选项，无法按文件作用域豁免，因此改在 paths 段
-# 对该文件单独忽略 if-cond（常量条件）错误，其余检查照旧。
-paths:
-  ".github/workflows/sync-to-gitcode.yml":
-    ignore:
-      - 'constant expression "false" in condition'

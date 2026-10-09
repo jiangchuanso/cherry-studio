@@ -76,9 +76,6 @@ jobs:
         env:
           SHELLCHECK_OPTS: --severity=error
         with:
-          # actionlint 1.7.x 的 `-ignore` 是按「错误消息正则」匹配、无法按文件作用域豁免；
-          # sync-to-gitcode.yml 三个 job 的 `if: false` 常量条件（if-cond）豁免已移到
-          # .github/actionlint.yaml 的 paths 段。这里只保留 -color。
           args: -color
       - name: Prepare base reference
         if: github.event_name == 'pull_request'
@@ -196,9 +193,9 @@ jobs:
       - name: Check locale synchronization
         run: |
           pnpm i18n:sync
-          if [ -n "$(git status --porcelain --untracked-files=all -- src/renderer/i18n src/main/i18n)" ]; then
+          if [ -n "$(git status --porcelain --untracked-files=all -- src/renderer/i18n src/main/i18n packages/file-preview/src/locales)" ]; then
             echo "::error::Translations are out of sync."
-            git --no-pager diff -- src/renderer/i18n src/main/i18n
+            git --no-pager diff -- src/renderer/i18n src/main/i18n packages/file-preview/src/locales
             exit 1
           fi
       - run: pnpm check --group i18n
