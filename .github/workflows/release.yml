@@ -166,7 +166,10 @@ jobs:
   release:
     name: Build ${{ matrix.edition }} (${{ matrix.os }})
     needs: prepare
-    runs-on: ${{ matrix.os == 'windows-latest' && fromJSON('["self-hosted", "windows-signing"]') || matrix.os }}
+    # fork 定制：改用 GitHub 托管 runner（${{ matrix.os }}），不依赖自托管 windows-signing
+    # 签名机；因此下面 Build Windows 也不设置 WIN_SIGN / CHERRY_CERT_*（不做代码签名）。
+    # 合并上游后如需恢复签名，删除本注释并把 runs-on 改回上游的 fromJSON(...) 写法即可。
+    runs-on: ${{ matrix.os }}
     permissions:
       contents: read
 
@@ -276,10 +279,6 @@ jobs:
           pnpm ${{ matrix.edition == 'cn' && 'build:win:cn' || 'build:win' }}
         env:
           ELECTRON_BUILDER_7Z_FILTER: BCJ
-          WIN_SIGN: true
-          CHERRY_CERT_PATH: ${{ secrets.CHERRY_CERT_PATH }}
-          CHERRY_CERT_KEY: ${{ secrets.CHERRY_CERT_KEY }}
-          CHERRY_CERT_CSP: ${{ secrets.CHERRY_CERT_CSP }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_OPTIONS: --max-old-space-size=8192
           MAIN_VITE_CHERRYAI_CLIENT_SECRET: ${{ secrets.MAIN_VITE_CHERRYAI_CLIENT_SECRET }}

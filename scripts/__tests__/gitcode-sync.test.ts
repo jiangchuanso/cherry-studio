@@ -128,9 +128,11 @@ it('gates mirroring on publication and keeps CN files out of the GitHub upload d
   expect(sync.if).toContain("needs.publish.result == 'success'")
   expect(sync.if).toContain("inputs.mode == 'sync-only'")
   expect(workflow.jobs.notify.if).toContain("!(inputs.mode == 'sync-only' && inputs.dry_run)")
-  expect(workflow.jobs.release['runs-on']).toContain('windows-signing')
+  // fork 定制：release job 改回 GitHub 托管 runner（${{ matrix.os }}），不再依赖自托管
+  // windows-signing 签名机，因此 Windows 构建不设置 WIN_SIGN（不做代码签名）。
+  expect(workflow.jobs.release['runs-on']).toBe('${{ matrix.os }}')
   const windows = workflow.jobs.release.steps.find((step: { name: string }) => step.name === 'Build Windows')
-  expect(windows.env.WIN_SIGN).toBe(true)
+  expect(windows.env.WIN_SIGN).toBeUndefined()
   const finalize = workflow.jobs['finalize-build']
   const upload = finalize.steps.find((step: { name: string }) => step.name === 'Create or update draft release')
   expect(upload.with.artifacts).toBe('github-release-artifacts/*')
