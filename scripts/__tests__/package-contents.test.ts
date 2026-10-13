@@ -55,10 +55,7 @@ describe('packaged dependency contents', () => {
         for (const targetArch of ['arm64', 'x64']) {
           const target = `${targetPlatform}-${targetArch}`
           const keep = targetPlatform === platform && targetArch === arch
-          for (const file of [
-            `@koromix/koffi-${target}/koffi.node`,
-            `node-pty/prebuilds/${target}/pty.node`
-          ]) {
+          for (const file of [`@koromix/koffi-${target}/koffi.node`, `node-pty/prebuilds/${target}/pty.node`]) {
             expect(includesFile(`${modules}/${file}`, patterns), file).toBe(keep)
           }
           // selection-hook has no glibc-2.31-compatible build, so Linux packages omit it
