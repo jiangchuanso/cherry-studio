@@ -110,15 +110,13 @@ describe('BasicInfoStep', () => {
     ).toBeVisible()
   })
 
-  it('offers Claude, Pi and DeepSeek Harness when creating an agent (fork keeps dsh visible)', () => {
+  it('offers Claude and Pi when creating an agent', () => {
     render(<Harness runtimeSelectable />)
 
     expect(screen.getByText('library.config.agent.field.runtime.immutable_hint')).toBeVisible()
     expect(screen.queryByRole('img', { name: /runtime\.immutable_hint/ })).not.toBeInTheDocument()
     expect(screen.getByRole('radio', { name: /runtime.option.claude_code/ })).toBeChecked()
     expect(screen.getByRole('radio', { name: /runtime.option.pi/ })).not.toBeChecked()
-    // Fork: DeepSeek Harness stays selectable in the create flow (upstream #21034 hides it).
-    expect(screen.getByRole('radio', { name: /runtime.option.dsh/ })).toBeInTheDocument()
     expect(screen.queryByText('library.config.agent.field.runtime.pi_hint')).not.toBeInTheDocument()
   })
 

@@ -44,8 +44,8 @@ const RUNTIME_DESCRIPTION_KEYS: Record<AgentType, string> = {
   pi: 'library.config.agent.field.runtime.option_description.pi'
 }
 
-// Fork change: upstream #21034 hides DeepSeek Harness (dsh) from the create-agent runtime
-// picker. We keep dsh selectable here so users can pick it when creating an agent.
+// The runtime picker surfaces every runtime declared in AGENT_RUNTIME_CAPABILITIES; the create
+// wizard and the editor summary stay in sync because both read from the same source of truth.
 const RUNTIMES = Object.keys(AGENT_RUNTIME_CAPABILITIES) as AgentType[]
 const RUNTIME_CARD_CLASS_NAME = 'w-full items-center gap-2 rounded-lg px-3 py-1.5 font-normal'
 

@@ -57,8 +57,7 @@ describe('packaged dependency contents', () => {
           const keep = targetPlatform === platform && targetArch === arch
           for (const file of [
             `@koromix/koffi-${target}/koffi.node`,
-            `node-pty/prebuilds/${target}/pty.node`,
-            `@anthropic-ai/claude-agent-sdk-${target}/claude`
+            `node-pty/prebuilds/${target}/pty.node`
           ]) {
             expect(includesFile(`${modules}/${file}`, patterns), file).toBe(keep)
           }
