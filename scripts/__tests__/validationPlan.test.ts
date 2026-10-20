@@ -159,6 +159,16 @@ describe('validation selection', () => {
       verifyResults(createPlan([]), Object.fromEntries(Object.keys(results).map((key) => [key, 'skipped'])))
     ).not.toThrow()
   })
+  it('tolerates a planned platform job that got no runner, but still rejects real failures', () => {
+    const plan = createPlan(['src/main/service.ts'])
+    const results = Object.fromEntries(
+      Object.entries(selectedGroups(plan)).map(([key, required]) => [key, required ? 'success' : 'skipped'])
+    )
+    expect(() => verifyResults(plan, { ...results, platform: 'abandoned' })).not.toThrow()
+    for (const result of ['failure', 'cancelled', 'skipped', undefined]) {
+      expect(() => verifyResults(plan, { ...results, platform: result })).toThrow('platform: expected success')
+    }
+  })
 })
 
 describe('working tree changes', () => {
