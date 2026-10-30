@@ -102,3 +102,5 @@ YOUR_MEMORY_FILE_PATH
 .devtools
 .omo/
 .logs*
+
+/native/external-app/build/
