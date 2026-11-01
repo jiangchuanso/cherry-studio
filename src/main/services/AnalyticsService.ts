@@ -6,6 +6,7 @@ import { loggerService } from '@logger'
 import { createLatestReconciler, type LatestReconciler } from '@main/core/concurrency/latestReconciler'
 import { type Activatable, BaseService, Injectable, Phase, ServicePhase } from '@main/core/lifecycle'
 import { isAutomaticNetworkAllowed } from '@main/utils/automaticNetwork'
+import { getAppEdition } from '@main/utils/appEdition'
 import { isDataCollectionConsented } from '@main/utils/privacyConsent'
 import { generateUserAgent, getClientId } from '@main/utils/systemInfo'
 import { APP_NAME } from '@shared/utils/constants'
@@ -123,6 +124,7 @@ export class AnalyticsService extends BaseService implements Activatable {
         'Client-Id': clientId,
         'App-Name': APP_NAME,
         'App-Version': `v${app.getVersion()}`,
+        'X-App-Edition': getAppEdition(),
         OS: process.platform
       }
     })
