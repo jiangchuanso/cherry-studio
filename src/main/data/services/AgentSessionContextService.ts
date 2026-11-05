@@ -7,10 +7,12 @@ import {
   type AgentRuntimeBackendRow,
   type AgentRuntimeLocator
 } from '@data/db/schemas/agentRuntimeBackend'
+import { agentSessionTable as sessions } from '@data/db/schemas/agentSession'
 import { agentSessionContextTable as contexts, type AgentSessionContextRow } from '@data/db/schemas/agentSessionContext'
 import type { DbOrTx } from '@data/db/types'
 
-import { readAgentSessionAncestry } from './agentSessionMessageTree'
+import { ensureAgentSessionRootTx, readAgentSessionAncestry } from './agentSessionMessageTree'
+import { agentSessionService } from './AgentSessionService'
 
 const locatorSchema = z.discriminatedUnion('kind', [
   z.object({ version: z.literal(1), kind: z.literal('pi') }),
@@ -22,6 +24,77 @@ const locatorSchema = z.discriminatedUnion('kind', [
 ])
 
 class AgentSessionContextService {
+  child(parentContextId: string, nativeThreadId: string, toolCallId: string, name: string): AgentSessionContextRow {
+    return application.get('DbService').withWriteTx((tx) => {
+      const parent = tx.select().from(contexts).where(eq(contexts.id, parentContextId)).get()
+      if (!parent) throw new Error('Parent context is unavailable')
+      const found = tx
+        .select()
+        .from(contexts)
+        .where(and(eq(contexts.parentContextId, parentContextId), eq(contexts.nativeThreadId, nativeThreadId)))
+        .get()
+      if (found) return found
+      const parentSession = tx.select().from(sessions).where(eq(sessions.id, parent.sessionId)).get()!
+      const sessionId = agentSessionService.createChildArchiveTx(
+        tx,
+        parentSession.ownerSessionId ?? parent.sessionId,
+        name
+      )
+      return tx
+        .insert(contexts)
+        .values({
+          sessionId,
+          parentContextId,
+          nativeThreadId,
+          bindingState: 'bound',
+          backendId: parent.backendId,
+          spawnToolCallId: toolCallId,
+          anchorMessageId: ensureAgentSessionRootTx(tx, sessionId),
+          checkpointMapping: { child: { sources: {} } }
+        })
+        .returning()
+        .get()
+    })
+  }
+
+  findChild(ownerSessionId: string, toolCallId: string): AgentSessionContextRow | undefined {
+    const rows = application
+      .get('DbService')
+      .getDb()
+      .select({ context: contexts })
+      .from(contexts)
+      .innerJoin(sessions, eq(sessions.id, contexts.sessionId))
+      .where(and(eq(sessions.ownerSessionId, ownerSessionId), eq(contexts.spawnToolCallId, toolCallId)))
+      .all()
+    return rows.length === 1 ? rows[0].context : undefined
+  }
+
+  saveProjectionTx(
+    tx: DbOrTx,
+    contextId: string,
+    mapping: Record<string, string>,
+    gap?: string,
+    removed?: readonly string[],
+    composition?: Record<string, { messageId: string; parts: number[] }[]>
+  ): void {
+    const checkpoint = tx.select().from(contexts).where(eq(contexts.id, contextId)).get()?.checkpointMapping
+    tx.update(contexts)
+      .set({
+        checkpointMapping: {
+          ...checkpoint,
+          child: {
+            ...checkpoint?.child,
+            sources: mapping,
+            gap,
+            ...(removed && { removed }),
+            ...(composition && { composition })
+          }
+        }
+      })
+      .where(eq(contexts.id, contextId))
+      .run()
+  }
+
   reserveBranchTx(
     tx: DbOrTx,
     binding: Pick<AgentSessionContextRow, 'sessionId' | 'backendId' | 'anchorMessageId'> &
@@ -29,7 +102,6 @@ class AgentSessionContextService {
   ): AgentSessionContextRow {
     this.backendTx(tx, binding.backendId)
     if (!binding.anchorMessageId) throw new Error('Branch anchor is required')
-    readAgentSessionAncestry(tx, binding.sessionId, binding.anchorMessageId)
     const nativeId = binding.nativeThreadId
     const existing = nativeId
       ? tx
@@ -103,31 +175,6 @@ class AgentSessionContextService {
     })
   }
 
-  allocateContext(sessionId: string, backendId: string, nativeThreadId?: string): AgentSessionContextRow {
-    return application
-      .get('DbService')
-      .withWriteTx((tx) => this.allocateContextTx(tx, sessionId, backendId, nativeThreadId))
-  }
-
-  allocateContextTx(tx: DbOrTx, sessionId: string, backendId: string, nativeThreadId?: string): AgentSessionContextRow {
-    this.backendTx(tx, backendId)
-    if (nativeThreadId) {
-      const existing = tx
-        .select()
-        .from(contexts)
-        .where(
-          and(
-            eq(contexts.sessionId, sessionId),
-            eq(contexts.backendId, backendId),
-            eq(contexts.nativeThreadId, nativeThreadId)
-          )
-        )
-        .get()
-      if (existing) return existing
-    }
-    return tx.insert(contexts).values({ sessionId, backendId, nativeThreadId }).returning().get()
-  }
-
   context(id: string): AgentSessionContextRow {
     return this.contextTx(application.get('DbService').getDb(), id)
   }
@@ -152,10 +199,6 @@ class AgentSessionContextService {
         .returning()
         .get()
     })
-  }
-
-  forSession(sessionId: string): AgentSessionContextRow[] {
-    return application.get('DbService').getDb().select().from(contexts).where(eq(contexts.sessionId, sessionId)).all()
   }
 }
 
