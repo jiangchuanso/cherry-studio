@@ -84,6 +84,12 @@ jobs:
       - name: Install Dependencies
         run: pnpm install
 
+      - name: Enable Linux ARM64 addon builds
+        if: matrix.os == 'ubuntu-latest'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       - name: Build Windows
         if: matrix.os == 'windows-latest'
         run: pnpm ${{ matrix.edition == 'cn' && 'build:win:cn' || 'build:win' }}
