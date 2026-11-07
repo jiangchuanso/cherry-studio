@@ -222,14 +222,12 @@ exports.prepareSystemSpeechHelper = prepareSystemSpeechHelper
 
 const getNativeModuleFilters = (platform, arch) => {
   const keptPackages = keepPackages(platform, arch)
-  const nativeBindingTarget = `${platform}-${arch}${platform === 'win32' ? '-msvc' : platform === 'linux' ? '-gnu' : ''}`
   const isLinuxTarget = platform === 'linux' || platform === 'linuxmusl'
   return [
     ...packages.filter((name) => !keptPackages.includes(name)).map((name) => `!**/node_modules/${name}/**`),
-    `!**/node_modules/@mariozechner/clipboard-!(${nativeBindingTarget})/**`,
-    `!**/node_modules/@koromix/koffi-!(${platform}-${arch})/**`,
-    `!**/node_modules/node-addon-require-builtin-!(${nativeBindingTarget})/**`,
-    `!**/node_modules/node-pty/prebuilds/!(${platform}-${arch})/**`,
+    // Upstream removed the koffi/node-pty/clipboard filters as packaging leftovers (#23743).
+    // Keep the fork's Kylin rule: selection-hook's linux prebuilds need GLIBC_2.38, so Linux
+    // packages omit the module entirely while other platforms keep only their own prebuild.
     ...modulesUnavailableOnLinux.map((name) =>
       isLinuxTarget ? `!**/node_modules/${name}/**` : `!**/node_modules/${name}/prebuilds/!(${platform}-${arch})/**`
     )
