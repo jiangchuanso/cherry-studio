@@ -49,7 +49,9 @@ icons reuse the host's loaded GTK major version to avoid mixing GTK 3 and GTK 4.
 macOS and Linux use Node-API rather than V8 APIs,
 so their host Node headers do not tie the addon to a Node module ABI version.
 
-Linux packaging builds in an Ubuntu 22.04 Docker image to bound the glibc baseline.
+Linux packaging builds in an Ubuntu 20.04 Docker image (glibc 2.31) to match the
+Kylin Desktop V10 SP1 baseline; the build verifies the addon's GLIBC requirements
+so a newer base image fails early instead of breaking the release deb.
 Docker and foreign-architecture emulation are required for ARM64 builds on x64.
 The release workflows enable QEMU. The addon dynamically uses the desktop's GIO;
 it does not bundle an application registry or replace the user's XDG environment.

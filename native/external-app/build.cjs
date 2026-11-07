@@ -1,6 +1,31 @@
 const { execFileSync } = require('node:child_process')
-const { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, renameSync, rmSync, statSync } = require('node:fs')
+const {
+  copyFileSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync
+} = require('node:fs')
 const path = require('node:path')
+const { compareVersions, parseVersionRequirements } = require('../../scripts/linux-native/compat')
+
+// Kylin Desktop V10 SP1 (Ubuntu 20.04, glibc 2.31) is the floor for Linux release packages.
+const LINUX_GLIBC_BASELINE = '2.31'
+
+function assertLinuxGlibcBaseline(addonPath) {
+  const requirements = parseVersionRequirements(readFileSync(addonPath).toString('latin1'))
+  if (requirements.glibc && compareVersions(requirements.glibc, LINUX_GLIBC_BASELINE) > 0) {
+    throw new Error(
+      `external-app.node requires GLIBC_${requirements.glibc}, above the ${LINUX_GLIBC_BASELINE} ` +
+        `baseline required by Kylin Desktop V10 SP1. Build it in a glibc-${LINUX_GLIBC_BASELINE} ` +
+        'image (see native/external-app/linux/Dockerfile).'
+    )
+  }
+}
 
 const root = path.resolve(__dirname, '../..')
 const sourceFiles = [
@@ -68,6 +93,7 @@ function buildExternalApp({ platform = process.platform, arch = process.arch, pa
         ],
         { stdio: 'inherit' }
       )
+      assertLinuxGlibcBaseline(output)
     } else {
       const args = [require.resolve('node-gyp/bin/node-gyp.js'), 'rebuild', '--directory', __dirname, `--arch=${arch}`]
       if (platform === 'win32')
@@ -82,6 +108,6 @@ function buildExternalApp({ platform = process.platform, arch = process.arch, pa
   }
 }
 
-module.exports = { buildExternalApp, sourceFiles }
+module.exports = { assertLinuxGlibcBaseline, buildExternalApp, LINUX_GLIBC_BASELINE, sourceFiles }
 if (require.main === module)
   buildExternalApp({ arch: process.argv[2] ?? process.arch, packaging: process.argv.includes('--packaging') })

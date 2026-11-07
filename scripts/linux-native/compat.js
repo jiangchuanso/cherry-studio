@@ -196,6 +196,7 @@ function readProjectBuildMetadata(projectRoot) {
 
 module.exports = {
   ARCH_TO_ELF_MACHINE,
+  compareVersions,
   getNativeArtifactPaths,
   parseVersionRequirements,
   readProjectBuildMetadata,
