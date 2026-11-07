@@ -15,6 +15,9 @@ const DEFAULT_REPOSITORY_ROOT = path.resolve(__dirname, '../../..')
 const TAILWIND_ADAPTER_VARIABLE_PATTERN = /--color-[a-z0-9-]*/
 const STYLE_SOURCE_EXTENSIONS = new Set(['.css'])
 const TYPESCRIPT_SOURCE_EXTENSIONS = new Set(['.ts', '.tsx'])
+// Test stubs (jsdom setup, fixtures) are not shipping renderer sources and may
+// legitimately set theme variables; keep them out of the contract scan.
+const TEST_SOURCE_PATTERN = /(^|\/)__tests__\/|\.(test|spec)\.[cm]?[jt]sx?$/
 const RUNTIME_THEME_INPUT_VARIABLES = new Set(RUNTIME_THEME_INPUT_TOKENS.map((token) => `--cs-theme-${token}`))
 const PUBLIC_SEMANTIC_VARIABLES = new Set([
   ...SHADCN_VARIABLE_TOKENS.map((token) => `--${token}`),
@@ -61,6 +64,8 @@ async function loadSourceEntries(
 
       if (entry.isDirectory()) return loadSourceEntries(entryPath, repositoryRoot, extensions)
       if (!entry.isFile() || !extensions.has(path.extname(entry.name))) return []
+      if (TEST_SOURCE_PATTERN.test(entry.name) || path.relative(repositoryRoot, entryPath).includes('/__tests__/'))
+        return []
 
       return [[path.relative(repositoryRoot, entryPath), await fs.readFile(entryPath, 'utf8')]]
     })
