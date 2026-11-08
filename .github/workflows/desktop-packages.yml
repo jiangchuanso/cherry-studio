@@ -180,12 +180,30 @@ jobs:
               fi
             fi
 
-            # 3) no shipped ELF may require a glibc newer than the target provides
+            # 3) no loadable ELF may require a glibc newer than the target provides.
+            # Native modules such as better-sqlite3 ship prebuilds for BOTH architectures in
+            # every package. Only the binary matching the deb's Architecture can be loaded on
+            # Kylin; the other arch's prebuild is never loaded and was built on the runner
+            # against a newer glibc (2.34), so scanning it produces a false positive.
             mapfile -t elfs < <(find "$workdir" -type f -print0 | xargs -0 -r file | grep -a 'ELF' | cut -d: -f1)
             echo "scanning ${#elfs[@]} ELF files for GLIBC requirements"
+            case "$arch" in
+              arm64) expected_machine="AArch64" ;;
+              *) expected_machine="X86-64" ;;
+            esac
             worst="$MAX_GLIBC"
             worst_file=""
+            checked=0
+            skipped=0
             for f in "${elfs[@]}"; do
+              machine="$(readelf -h "$f" 2>/dev/null | sed -n 's/^[[:space:]]*Machine:[[:space:]]*//p')" || true
+              # Only skip when the ELF is positively identified as another architecture;
+              # an unparseable header still gets checked so real violations cannot slip through.
+              if [ -n "$machine" ] && [[ "$machine" != *"$expected_machine"* ]]; then
+                skipped=$((skipped + 1))
+                continue
+              fi
+              checked=$((checked + 1))
               # `|| true`: under `set -e`+`pipefail`, a file with no GLIBC version
               # symbols (grep finds nothing → exit 1) or a readelf parse error would
               # otherwise abort the whole check before it prints any result. Skip such
@@ -198,6 +216,7 @@ jobs:
                 worst_file="$f"
               fi
             done
+            echo "checked $checked ${arch} ELFs (skipped $skipped other-architecture binaries)"
             echo "highest GLIBC requirement: $worst (from ${worst_file:-none})"
             if [ "$(printf '%s\n%s\n' "$MAX_GLIBC" "$worst" | sort -V | tail -1)" != "$MAX_GLIBC" ]; then
               echo "::error::$deb needs GLIBC $worst but Kylin V10 SP1 only has $MAX_GLIBC (offender: $worst_file)"
