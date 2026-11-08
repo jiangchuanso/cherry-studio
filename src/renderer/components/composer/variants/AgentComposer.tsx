@@ -119,7 +119,7 @@ import {
 } from './agent/agentDraftCache'
 import { buildAgentFilePartsForAttachments, toAccessiblePaths } from './agent/agentFileParts'
 import { PlanModeHint } from './agent/PlanModeHint'
-import { usePlanModeHint } from './agent/planModeHint'
+import { usePlanModeHint } from './agent/usePlanModeHint'
 import { createAttachmentFromPath, useAgentResourceMentionSource } from './agent/useAgentResourceMentionSource'
 import {
   AGENT_MANAGED_TOKEN_KINDS,

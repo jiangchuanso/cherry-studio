@@ -3,6 +3,11 @@
 # and the release deb fails the compatibility check. Focal names the headers package
 # libgdk-pixbuf2.0-dev (jammy renamed it to libgdk-pixbuf-2.0-dev).
 FROM ubuntu:20.04
+
+# tzdata is a transitive dependency. Its postinst opens an interactive debconf prompt
+# for the geographic area; `docker build` has no TTY, so debconf falls back to Readline
+# and blocks forever waiting for stdin. `-y` alone does not suppress that prompt.
+ENV DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC
 RUN apt-get update && apt-get install -y --no-install-recommends g++ pkg-config libglib2.0-dev libgdk-pixbuf2.0-dev && rm -rf /var/lib/apt/lists/*
 COPY include /include
 COPY source /src
