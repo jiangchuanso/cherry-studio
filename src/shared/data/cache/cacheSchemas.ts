@@ -10,6 +10,7 @@ import type { AutoBackupEvent, AutoBackupType } from '@shared/types/backup'
 import type { AbsoluteFilePath } from '@shared/types/file'
 import type { ManagedToolStatusState } from '@shared/types/managedTool'
 import type { SelectionAgentCapsule } from '@shared/types/selection'
+import type { MarketplaceSkillMember, SkillSubscriptionSnapshot } from '@shared/types/skillMarketplace'
 import type { StorageHealth } from '@shared/types/storageMonitor'
 
 import type { TopicStatusSnapshotEntry } from '../../ai/transport'
@@ -169,6 +170,7 @@ export type UseCacheSchema = {
 
   // Agent management
   'agent.session.waiting_id_map': Record<string, boolean>
+  'agent.session.details_hidden': string[]
   // Per-session composer draft. Renderer memory only; app restart discards it.
   'agent.composer_draft.${sessionId}': CacheValueTypes.CacheAgentComposerDraft
   // Unsubmitted AskUserQuestion answers. Renderer memory only; cleared on submit/dismiss.
@@ -209,6 +211,7 @@ export type UseCacheSchema = {
   'message.streaming.chat_session.${topicId}': any // { chat: Chat<CherryUIMessage> } (renderer memory-only)
   'message.ui.${messageId}': {
     foldSelected?: boolean
+    foldSelectedBranchId?: string | null
     multiModelMessageStyle?: string
     useful?: boolean
     disclosures?: Record<string, boolean>
@@ -258,6 +261,7 @@ export const DefaultUseCache: UseCacheSchema = {
 
   // Agent management
   'agent.session.waiting_id_map': {},
+  'agent.session.details_hidden': [],
   'agent.composer_draft.${sessionId}': {
     text: '',
     tokens: [],
@@ -576,10 +580,15 @@ export const DefaultRendererPersistCache: RendererPersistCacheSchema = {
  * with, or readable by the renderer.
  */
 export type MainPersistCacheSchema = {
+  'skill.subscription.catalogs': Record<string, SkillSubscriptionSnapshot>
+  // ZIP-derived contents only; installed state still comes from the skill library.
+  'skill.marketplace.members': Record<string, MarketplaceSkillMember[]>
   'browser.favicons': Record<string, string>
   // Last completed automatic-backup attempt (or manual backup) per backend.
   // AutoBackupService owns this restart-safe scheduling baseline.
   'backup.auto_sync.last_attempt_times': Record<AutoBackupType, number | null>
+  // Last processed Cherry Cloud notification position per account id; losing one only rebuilds that baseline.
+  'cherry_cloud.notification_cursors': Record<string, string>
   // Persist-layer self-test key: exercises the typed persist API and round-trip
   // tests for the generic mechanism, independent of any real consumer.
   'internal.persist_probe': number
@@ -591,8 +600,11 @@ export type MainPersistCacheSchema = {
 }
 
 export const DefaultMainPersistCache: MainPersistCacheSchema = {
+  'skill.subscription.catalogs': {},
+  'skill.marketplace.members': {},
   'browser.favicons': {},
   'backup.auto_sync.last_attempt_times': { webdav: null, s3: null, local: null, nutstore: null },
+  'cherry_cloud.notification_cursors': {},
   'internal.persist_probe': 0,
   'window.bounds': {}
 }
