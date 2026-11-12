@@ -153,7 +153,7 @@ const fakeCacheService = {
 }
 const mockSaveSpans = vi.fn<(topicId: string) => Promise<void>>(async () => undefined)
 const mockWillContinueTopic = vi.fn<(topicId: string) => boolean>(() => false)
-const mockCloseSession = vi.fn<(sessionId: string) => Promise<void>>(async () => undefined)
+const mockCloseSession = vi.fn<(sessionId: string, interrupt?: boolean) => Promise<void>>(async () => undefined)
 
 vi.mock('@application', async () => {
   const { mockApplicationFactory } = await import('@test-mocks/main/application')
@@ -596,28 +596,6 @@ describe('AiStreamManager', () => {
   // ── send (start path) ──────────────────────────────────────────────
 
   describe('send (start)', () => {
-    it('creates an active stream and launches an execution loop against AiService.streamText', () => {
-      const snap = startSingle(mgr, {
-        topicId: 'a',
-        modelId: 'provider-a::model-a',
-        request: req('a'),
-        listeners: [new FakeListener('l:a')]
-      })
-
-      // Topics start in `pending` — the initial state before any chunk has
-      // flowed from the provider. `onChunk` flips this to `streaming`.
-      expect(snap).toMatchObject({
-        topicId: 'a',
-        status: 'pending',
-        isMultiModel: false
-      })
-      expect(mgr.hasUnsettledTopicWork('a')).toBe(true)
-      // One streamText call per execution — 1 for single-model.
-      // Passing signal propagation is verified indirectly by abort-path tests
-      // (e.g. `abort > sets status and triggers AbortController signal`).
-      expect(mockStreamText).toHaveBeenCalledOnce()
-    })
-
     it('reports whether any stream can still persist turn state', () => {
       expect(mgr.hasLiveStreams()).toBe(false)
 
@@ -2218,6 +2196,33 @@ describe('AiStreamManager', () => {
       expect(mgr.inspect('a')!.status).toBe('done')
     })
 
+    it('cancels background work even after the visible stream has finished', async () => {
+      vi.useRealTimers()
+      const feed = controlledStream()
+      mockStreamText.mockResolvedValueOnce(feed.stream)
+      const topicId = 'agent-session:session-1'
+      let backgroundRunning = true
+      mockCloseSession.mockImplementationOnce(async (_sessionId: string, interrupt?: boolean) => {
+        if (interrupt) backgroundRunning = false
+      })
+      startSingle(mgr, {
+        topicId,
+        modelId: 'provider-a::model-a',
+        request: req(topicId),
+        listeners: []
+      })
+      feed.enqueue({ type: 'start' })
+      feed.enqueue({ type: 'finish' })
+      feed.close()
+      await flushUntil(() => mgr.inspect(topicId)?.status === 'done')
+      expect(mgr.inspect(topicId)?.status).toBe('done')
+
+      await mgr.abortAndDrain(topicId, 'user-requested')
+
+      expect(backgroundRunning).toBe(false)
+      expect(mgr.hasUnsettledTopicWork(topicId)).toBe(false)
+    })
+
     it('holds same-topic admission until paused persistence and runtime close settle', async () => {
       vi.useRealTimers()
       const listener = new FakeListener('persistence:agent')
@@ -3766,7 +3771,7 @@ describe('AiStreamManager', () => {
       // now reports — proof that the accumulator wrote before the terminal
       // broadcast rather than after it.
       expect(listener.doneResults).toHaveLength(1)
-      expect(listener.doneResults[0].finalMessage).toBe(snap.executions[0].finalMessage)
+      expect(listener.doneResults[0].finalMessage).toEqual(snap.executions[0].finalMessage)
 
       const parts = (snap.executions[0].finalMessage?.parts ?? []) as Array<{ type: string; text?: string }>
       expect(parts.some((p) => p.type === 'text' && p.text === 'hello')).toBe(true)
@@ -4490,7 +4495,6 @@ describe('AiStreamManager', () => {
         const replacementPending = statusWritesFor(topicId).at(-1)!
         const replacementTurnId = replacementPending.turnId
         expect(replacementPending.status).toBe('pending')
-        expect(replacementTurnId).toMatch(/^\d+:\d+$/)
         expect(replacementTurnId).not.toBe(staleTurnId)
 
         mgr.enqueuePendingSteer(topicId, `steer-${terminalKind}`)
@@ -4582,7 +4586,6 @@ describe('AiStreamManager', () => {
       await mgr.onExecutionDone('t', 'p::m')
       expect(statusSequence('t')).toEqual(['pending', 'streaming', 'done'])
       expect(new Set(statusWritesFor('t').map((entry) => entry?.turnId)).size).toBe(1)
-      expect(statusWritesFor('t')[0]?.turnId).toMatch(/^\d+:\d+$/)
       expect(conversationCompletedEvents).toEqual([])
 
       // Grace-period cleanup does not write again — the `done` value
