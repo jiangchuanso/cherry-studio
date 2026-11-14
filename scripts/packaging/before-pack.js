@@ -225,6 +225,7 @@ const getNativeModuleFilters = (platform, arch) => {
   const isLinuxTarget = platform === 'linux' || platform === 'linuxmusl'
   return [
     ...packages.filter((name) => !keptPackages.includes(name)).map((name) => `!**/node_modules/${name}/**`),
+    `!**/node_modules/better-sqlite3/prebuilds/!(${platform}-${arch}.node)`,
     // Upstream removed the koffi/node-pty/clipboard filters as packaging leftovers (#23743).
     // Keep the fork's Kylin rule: selection-hook's linux prebuilds need GLIBC_2.38, so Linux
     // packages omit the module entirely while other platforms keep only their own prebuild.
