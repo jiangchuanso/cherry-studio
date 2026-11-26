@@ -489,6 +489,7 @@ describe('Sentry log reporting', () => {
         kind: 'sqlite',
         persistAssistant() {
           messageTable.data.mapFromDriverValue(privateContent)
+          return { messageId: 'message' }
         }
       },
       onPersistFailed: () => {}

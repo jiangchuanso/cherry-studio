@@ -119,9 +119,9 @@ describe('CapabilityStep', () => {
     const user = userEvent.setup()
     render(<CapabilityStepHarness />)
 
-    const alphaSkill = screen.getByRole('checkbox', { name: 'Alpha Skill' })
-    const betaSkill = screen.getByRole('checkbox', { name: 'Beta Skill' })
-    const builtinSkill = screen.getByRole('checkbox', { name: 'Builtin Skill' })
+    const alphaSkill = screen.getByRole('switch', { name: 'Alpha Skill' })
+    const betaSkill = screen.getByRole('switch', { name: 'Beta Skill' })
+    const builtinSkill = screen.getByRole('switch', { name: 'Builtin Skill' })
 
     expect(alphaSkill).toBeChecked()
     expect(alphaSkill).toBeDisabled()
@@ -145,11 +145,11 @@ describe('CapabilityStep', () => {
     const selectAllSwitch = screen.getByRole('switch', {
       name: 'library.config.agent.section.tools.skills_enable_all'
     })
-    expect(selectAllSwitch).toBeChecked()
     expect(selectAllSwitch).toBeDisabled()
+    // CapabilityList counts only unlocked rows as bulk-controllable; all skills are locked.
+    expect(selectAllSwitch).not.toBeChecked()
 
     await user.click(selectAllSwitch)
-    expect(selectAllSwitch).toBeChecked()
     expect(screen.getByTestId('skill-ids').textContent).toBe('')
   })
 

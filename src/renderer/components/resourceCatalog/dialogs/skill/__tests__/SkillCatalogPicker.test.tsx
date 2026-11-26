@@ -108,6 +108,46 @@ describe('SkillCatalogPicker', () => {
     expect(onSelectedIdsChange).toHaveBeenCalledWith(['enabled-skill'])
   })
 
+  it('allows a saved builtin opt-out to be restored with the keyboard', async () => {
+    const user = userEvent.setup()
+    const builtinSkill = {
+      id: 'builtin',
+      name: 'Builtin Skill',
+      source: 'builtin',
+      isGlobalEnabled: true,
+      isEnabled: false
+    } as InstalledSkill
+
+    function ExistingAgentSkills() {
+      const [selectedIds, setSelectedIds] = useState<string[]>([])
+      return (
+        <SkillCatalogPicker
+          mode="edit"
+          skills={[builtinSkill]}
+          loading={false}
+          selectedIds={selectedIds}
+          onSelectedIdsChange={setSelectedIds}
+          emptyLabel="No skills"
+          portalContainer={null}
+        />
+      )
+    }
+
+    render(<ExistingAgentSkills />)
+    const toggle = screen.getByRole('switch', { name: 'Builtin Skill' })
+    expect(toggle).not.toBeChecked()
+    expect(toggle).toBeEnabled()
+    await user.tab()
+    await user.tab()
+    await user.tab()
+    await user.tab()
+    expect(toggle).toHaveFocus()
+    await user.keyboard(' ')
+
+    expect(toggle).toBeChecked()
+    expect(toggle).toBeDisabled()
+  })
+
   it('preserves selected globally disabled skills when toggling all visible skills', async () => {
     const user = userEvent.setup()
     const onSelectedIdsChange = vi.fn()
@@ -183,15 +223,17 @@ describe('SkillCatalogPicker', () => {
       />
     )
 
-    const skillCheckbox = screen.getByRole('checkbox', { name: 'Enabled Skill' })
-    expect(skillCheckbox).toBeChecked()
-    expect(skillCheckbox).toBeDisabled()
+    const skillSwitch = screen.getByRole('switch', { name: 'Enabled Skill' })
+    expect(skillSwitch).toBeChecked()
+    expect(skillSwitch).toBeDisabled()
     expect(screen.queryByText('Disabled Skill')).not.toBeInTheDocument()
 
     const bulkToggle = screen.getByRole('switch', {
       name: 'library.config.agent.section.tools.skills_enable_all'
     })
-    expect(bulkToggle).toBeChecked()
+    // Every listed skill is locked, so CapabilityList has no bulk-controllable items:
+    // the shared enable-all switch is off and disabled.
+    expect(bulkToggle).not.toBeChecked()
     expect(bulkToggle).toBeDisabled()
 
     await user.click(bulkToggle)
