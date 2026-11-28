@@ -1,4 +1,5 @@
 import { projectionIpc } from '@test-mocks/renderer/ProjectionIpc'
+import { MockUseCache } from '@test-mocks/renderer/useCache'
 import { act, render, renderHook, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -95,6 +96,7 @@ vi.mock('@renderer/ipc', () => ({
 }))
 
 vi.mock('@data/hooks/useCache', () => ({
+  ...MockUseCache,
   useCache: (key: string) => {
     if (key === 'chat.multi_select_mode') return [true, cacheHookMocks.setMultiSelectMode]
     if (key === 'chat.selected_message_ids')
@@ -223,6 +225,26 @@ describe('useAgentMessageListProviderValue', () => {
       modifiedAt: 0,
       mime: 'application/octet-stream'
     })
+  })
+
+  it.each([
+    ['/settings/provider', '/settings/local-agents?id=poolside', '/settings/local-agents?id=poolside'],
+    ['/settings/provider?id=openai', '/settings/local-agents?id=poolside', '/settings/provider?id=openai'],
+    ['/settings/general', '/settings/local-agents?id=poolside', '/settings/general'],
+    ['/settings/provider?id=anthropic', undefined, '/settings/provider?id=anthropic']
+  ])('routes recovery from %s to the owning settings page', (target, providerErrorSettingsPath, expected) => {
+    const { result } = renderHook(() =>
+      useAgentMessageListProviderValue({
+        topic: { id: 'agent-session:source', assistantId: 'agent-1', name: 'Source', messages: [] } as unknown as Topic,
+        messages: [],
+        partsByMessageId: {},
+        isLoading: false,
+        messageNavigation: 'anchor',
+        providerErrorSettingsPath
+      })
+    )
+    void result.current.actions.navigateErrorTarget?.(target)
+    expect(errorActionsMock.navigateErrorTarget).toHaveBeenCalledWith(expected)
   })
 
   it('allows fork only at the final display segment and addresses the durable Run', async () => {
